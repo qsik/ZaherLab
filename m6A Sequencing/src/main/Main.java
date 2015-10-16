@@ -32,9 +32,8 @@ public class Main {
 					e.element("Gene-commentary_)
 				}
 			}
-//			URL url = new URL(urlBase + file.getName() + urlCap);	
-//			Files.copy(url.openStream(), transcriptFolder.toPath(), StandardCopyOption.REPLACE_EXISTING);
-			return;
+			URL url = new URL(urlBase + file.getName() + urlCap);	
+			Files.copy(url.openStream(), transcriptFolder.toPath(), StandardCopyOption.REPLACE_EXISTING);
 		}
 	}
 }
