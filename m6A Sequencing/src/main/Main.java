@@ -6,12 +6,11 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
-import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import net.sf.jfasta.FASTAElement;
 import net.sf.jfasta.FASTAFileReader;
@@ -26,7 +25,9 @@ import org.apache.poi.ss.usermodel.Row;
 public class Main {
 	//	private static final String urlBase = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=protein&id=";
 	//	private static final String urlCap = "&rettype=fasta";
-	//	private static final File mrna = new File("Z:/Kyusik/m6a sequencing/refMrna.fa");
+	private static final File mrna = new File("Z:/Kyusik/m6A sequencing/v36.1mrna.fa");
+	private static final File excel = new File("Z:/Kyusik/m6A sequencing/m6a.xls");
+	private static final File errors = new File("Z:/Kyusik/m6A sequencing/errors.txt");
 	//	private static final File position = new File("Z:/Kyusik/m6a sequencing/positions.txt");
 	//	private static final File genesFolder = new File("Z:/Kyusik/m6A sequencing/Genes");
 	//	private static final File transcriptFolder = new File("Z:/Kyusik/m6A sequencing/Transcripts");
@@ -34,219 +35,114 @@ public class Main {
 	//	private static final File proteinFolder = new File("Z:/Kyusik/m6A sequencing/Proteins");
 	//	private static final File proteinFastaFolder = new File("Z:/Kyusik/m6A sequencing/Proteins/Fasta");
 
-	public static final File transcriptFolder = new File("C:/Users/Kyusik Kim/Downloads/m6A Sequencing/Transcripts");
-	public static final File position = new File("C:/Users/Kyusik Kim/Downloads/m6A Sequencing/positions.txt");
-	public static final File transcriptFastaFolder = new File("C:/Users/Kyusik Kim/Downloads/m6A Sequencing/Transcripts/Fasta");
-	public static final File mrna = new File("C:/Users/Kyusik Kim/Downloads/m6A Sequencing/v36.1mrna.fa");
-	public static final File data = new File("C:/Users/Kyusik Kim/Downloads/m6A Sequencing/m6a.xls");
+	//	public static final File transcriptFolder = new File("C:/Users/Kyusik Kim/Downloads/m6A Sequencing/Transcripts");
+	//	public static final File position = new File("C:/Users/Kyusik Kim/Downloads/m6A Sequencing/positions.txt");
+	//	public static final File transcriptFastaFolder = new File("C:/Users/Kyusik Kim/Downloads/m6A Sequencing/Transcripts/Fasta");
+	//	public static final File mrna = new File("C:/Users/Kyusik Kim/Downloads/m6A Sequencing/v36.1mrna.fa");
+	//	public static final File data = new File("C:/Users/Kyusik Kim/Downloads/m6A Sequencing/m6a.xls");
 	//	public static final File sequences = new File("C:/Users/Kyusik Kim/Downloads/m6A Sequencing/sequences.xls");
 
 	public static void main(String[] args) throws Exception {
-		Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(position), "utf-8"));
+		if (!errors.exists()) {
+			errors.createNewFile();
+		}
+
+		Writer writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(errors), "utf-8"));
 		FASTAFileReader reader = new FASTAFileReaderImpl(mrna);
 		FASTAElementIterator elementIterator = reader.getIterator();
 
-		HSSFWorkbook workbook = new HSSFWorkbook(new FileInputStream(data));
-		HSSFSheet sheet = workbook.getSheetAt(0);
-		Iterator<Row> rowIterator = sheet.rowIterator();
-		rowIterator.next();
-
-		Map<String, String> sequences = new HashMap<String, String>();
-
+		HSSFWorkbook workbook = new HSSFWorkbook(new FileInputStream(excel));
+		HSSFSheet data = workbook.getSheet("Data");
+		HSSFSheet analysis = workbook.getSheet("Analysis") == null? workbook.createSheet("Analysis") : workbook.getSheet("Analysis");
+		Set<FASTAElement> sequences = new HashSet<FASTAElement>();
 		while (elementIterator.hasNext()) {
-			FASTAElement element = elementIterator.next();
-			sequences.put(element.getHeader(), element.getSequence());
+			sequences.add(elementIterator.next());
 		}
-
 		System.out.println("Done parsing FASTA");
 
+		Iterator<Row> rowIterator = data.rowIterator();
+		rowIterator.next();
+		Row headerRow = analysis.createRow(0);
+		headerRow.createCell(0).setCellValue("Gene Symbol");
+		headerRow.createCell(1).setCellValue("Motif");
+		headerRow.createCell(2).setCellValue("Position");
+		headerRow.createCell(3).setCellValue("Header");
+		headerRow.createCell(4).setCellValue("Id");
+		int rownum = 1;
 		while (rowIterator.hasNext()) {
 			Iterator<Cell> cellIterator = rowIterator.next().cellIterator();
-			List<Object> data = new ArrayList<Object>();
-			while (cellIterator.hasNext()) {
-				Cell cell = cellIterator.next();
-				switch (cell.getCellType()) {
-				case Cell.CELL_TYPE_STRING:
-					data.add(cell.getStringCellValue());
-					break;
-				case Cell.CELL_TYPE_NUMERIC:
-					data.add(cell.getNumericCellValue());
-				}
+			cellIterator.next();
+			cellIterator.next();
+			cellIterator.next();
+			cellIterator.next();
+			String geneSymbol = getCellData(cellIterator.next());
+			String description = getCellData(cellIterator.next());
+			description = description.substring(0, description.length() / 2);
+			cellIterator.next();
+			double numPeaks = cellIterator.next().getNumericCellValue();
+			String[] peakPos = getCellData(cellIterator.next()).split(" ");
+			if (numPeaks != peakPos.length) {
+				System.out.println(geneSymbol);
+				break;
 			}
-			if (data.get(4) instanceof Double) {
-				double geneSym = (double) data.get(4);
-				data.remove(4);
-				data.add(4, String.valueOf(geneSym));
-			}
-			if (data.get(8) instanceof Double) {
-				int peak = ((Double) data.get(8)).intValue();
-				data.remove(8);
-				data.add(8, String.valueOf(peak));
-			}
-			String chromosome = ":" + ((String) data.get(0)).replace("chr", "") + ":";
-			String start = String.valueOf(((Double) data.get(1)).longValue());
-			System.out.println(data.get(4));
-			for (Entry<String, String> entry : sequences.entrySet()) {
-				if (entry.getKey().contains((String) data.get(4))) {
-					String[] peaks = ((String) data.get(8)).split(" ");
-					for (String peak : peaks) {
-						try {
-							int pos = Integer.parseInt(peak);
-							if (entry.getValue().charAt(pos) == 'A' || entry.getValue().charAt(pos - 1) == 'A' || entry.getValue().charAt(pos + 1) == 'A') {
-								writer.append("" + entry.getKey() + " : " + entry.getValue());
-								writer.append(System.lineSeparator());
+			System.out.println(geneSymbol);
+			for (FASTAElement element : sequences) {
+				String sequence = element.getSequence();
+				String header = element.getHeader();
+				if (header.contains(geneSymbol)) {
+					if (header.contains(description.substring(0, description.length() / 2))) {
+						boolean proceed = true;
+						if (description.contains("isoform")) {
+							if (header.contains("transcript variant")) {
+								String variant = header.substring(header.indexOf("transcript variant"));
+								String isoform = description.substring(description.indexOf("isoform")).replace("isoform", "transcript variant");
+								proceed = variant.contains(isoform);
 							}
-						} catch (Exception e) {
-							System.out.println(entry.getKey());
-							System.out.println(entry.getValue());
-							System.out.println(e);
 						}
-					}
-				}
-				else if (entry.getKey().contains(chromosome) && entry.getKey().contains(start)) {
-					String[] peaks = ((String) data.get(8)).split(" ");
-					for (String peak : peaks) {
-						try {
-							int pos = Integer.parseInt(peak);
-							String sequence = entry.getValue().substring(pos - 3, pos + 1);
-							writer.append("" + entry.getKey() + " : " + sequence);
-							writer.append(System.lineSeparator());
-						} catch (Exception e) {
-							System.out.println(e);
+						if (proceed) {
+							for (String peak : peakPos) {
+								try {
+									int pos = Integer.valueOf(peak);
+									if (sequence.charAt(pos - 1) == 'A') {
+										String motif = sequence.substring(pos - 3, pos + 2);
+										if (Pattern.matches("[AG][AG]AC[ACT]", motif)) {
+											Row row = analysis.createRow(rownum);
+											row.createCell(0).setCellValue(geneSymbol);
+											row.createCell(1).setCellValue(motif);
+											row.createCell(2).setCellValue(peak);
+											row.createCell(3).setCellValue(header);
+											row.createCell(4).setCellValue(header.split("|")[1]);
+											rownum++;
+										}
+									}
+								} catch (Exception e) {
+									writer.append(geneSymbol + " : " + peak + " : " + sequence.length());
+									writer.append(System.lineSeparator());
+								}							
+							}
 						}
 					}
 				}
 			}
 		}
 
-		//		FileOutputStream outputStream = new FileOutputStream(sequences);
-		//		workbook.write(outputStream);
-		//		outputStream.close();
+		FileOutputStream outputStream = new FileOutputStream(excel);
+		workbook.write(outputStream);
+		outputStream.close();
 		workbook.close();
 		writer.close();
 		reader.close();
+	}
 
-		//		HSSFWorkbook workbook = new HSSFWorkbook(new FileInputStream(data));
-		//		HSSFSheet sheet = workbook.getSheetAt(0);
-		//		Iterator<Row> rowIterator = sheet.rowIterator();
-		//		rowIterator.next();
-		//
-		//		Map<Transcript> sequences = new HashSet<Transcript>();
-		//		Map<String, Transcript> chromosomes = new HashMap<String, Map<String, String>>();
-		//
-		//		while (elementIterator.hasNext()) {
-		//			FASTAElement element = elementIterator.next();
-		//			String[] header = element.getHeader().split(" ");
-		//			if (header[1].equalsIgnoreCase("cdna:known")) {
-		//				chromosomes.put(header[2].split(":")[2], (sequences.put(element.getHeader(), element.getSequence());
-		//			}
-		//
-		//		}
-		//
-		//		System.out.println("Sequences parsed");
-		//
-		//		if (!position.exists()) {
-		//			position.createNewFile();
-		//		}
-		//
-		//		while (rowIterator.hasNext()) {
-		//			Iterator<Cell> cellIterator = rowIterator.next().cellIterator();
-		//			String chromosome = cellIterator.next().getStringCellValue().replace("chr", "");
-		//			String start = String.valueOf(cellIterator.next().getNumericCellValue());
-		//			String end = String.valueOf(cellIterator.next().getNumericCellValue());
-		//			String strand = cellIterator.next().getStringCellValue().equals("+")? "1" : "-1";
-		//			for (String header : sequences.keySet()) {
-		//				System.out.println(header);
-		//				System.out.println(chromosome + ":" + start + ":" + end + ":" + strand);
-		//				if (header.contains(chromosome) && header.contains(start) && header.contains(end) && header.contains(strand)) {
-		//					Cell geneCell = cellIterator.next();
-		//					geneCell.setCellType(Cell.CELL_TYPE_STRING);
-		//					String geneSymbol = geneCell.getStringCellValue();
-		//					cellIterator.next();
-		//					cellIterator.next();
-		//					Cell numPeaksCell = cellIterator.next();
-		//					numPeaksCell.setCellType(Cell.CELL_TYPE_NUMERIC);
-		//					double numPeaks = numPeaksCell.getNumericCellValue();
-		//					Cell peaksCell = cellIterator.next();
-		//					peaksCell.setCellType(Cell.CELL_TYPE_STRING);
-		//					String[] peaks = peaksCell.getStringCellValue().split(" ");
-		//					if (numPeaks != peaks.length) {
-		//						System.out.println(geneSymbol + " : Peaks != Num Peaks!");
-		//						break;
-		//					}
-		//					String[] annot = cellIterator.next().getStringCellValue().split(" ");
-		//					System.out.println("test!");
-		//				}
-		//			}
-		//		}
-		//
-		//		reader.close();
-		//		writer.close();
-		//		workbook.close();
+	private static String getCellData(Cell cell) {
+		switch (cell.getCellType()) {
+		case Cell.CELL_TYPE_NUMERIC:
+			Double d = cell.getNumericCellValue();
+			return String.valueOf(d.intValue());
+		case Cell.CELL_TYPE_STRING:
+			return cell.getStringCellValue();
+		default:
+			return "";
+		}
 	}
 }
-
-//		for (File protein : proteinFolder.listFiles()) {
-//			try {
-//				Document xml = reader.read(protein);
-//				String name = protein.getName().replace(".xml", "");
-//				String proteinId = xml.getRootElement().element("GBSeq").element("GBSeq_locus").getText();
-//				URL url = new URL(urlBase + proteinId + urlCap);
-//				File proteinFasta = new File(proteinFastaFolder.getPath() + "/" + name + ".fasta");
-//				Files.copy(url.openStream(), proteinFasta.toPath(), StandardCopyOption.REPLACE_EXISTING);
-//				System.out.println(name);
-//				Thread.sleep(350);
-//			} catch (Exception e) {
-//				System.out.println(e);
-//			}
-//		}
-
-//		Queue<FASTAElement> fastaElements = new ConcurrentLinkedQueue<FASTAElement>();
-//		FASTAFileReader fastaReader = new FASTAFileReaderImpl(mrna);
-//		FASTAElementIterator iterator = fastaReader.getIterator();
-//		while (iterator.hasNext()) {
-//			fastaElements.add(iterator.next());
-//		}
-//		fastaReader.close();
-//
-//		int i = 0;
-//		for (File transcript : transcriptFolder.listFiles()) {
-//			Document xml = reader.read(transcript);
-//			String name = transcript.getName().replace(".xml", "");
-//			List<Element> elements = xml.getRootElement().element("GBSeq").element("GBSeq_feature-table").elements();
-//			String[] cds = {"0", "0"};
-//			for (Element element : elements) {
-//				if (element.element("GBFeature_key") != null && element.elementText("GBFeature_key").equals("CDS")) {
-//					cds = element.elementText("GBFeature_location").split("\\.\\.");
-//				}
-//			}
-//			int start = Integer.parseInt(cds[0]) - 1;
-//			int end = Integer.parseInt(cds[1]);
-//			File fasta = new File(transcriptFastaFolder.getPath() + "/" + name + ".fasta");
-//			if (fasta.exists()) {
-//				System.out.println(name);
-//				fastaReader = new FASTAFileReaderImpl(fasta);
-//				iterator = fastaReader.getIterator();
-//				FASTAElement fastaElement = iterator.next();
-//				String codingSequence = fastaElement.getSequence().substring(start, end);
-//				fastaReader.close();
-//				for (FASTAElement sequence : fastaElements) {
-//					int loc = sequence.getSequence().toUpperCase().indexOf(codingSequence);
-//					if (loc != -1) {
-//						try {
-//							writer.append(name + ":" + loc + ":" + sequence.getHeader());
-//							writer.append(System.lineSeparator());
-//							System.out.println("Complete");
-//							fastaElements.remove(sequence);
-//						} catch (Exception e) {
-//							System.out.println(e);
-//						}
-//					}
-//				}
-//			}
-//			i++;
-//			if (i == 10) {
-//				break;
-//			}
-//		}
-//		writer.close();
