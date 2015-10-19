@@ -17,5 +17,6 @@
 			<attribute name="javadoc_location" value="jar:platform:/resource/m6A%20Sequencing/jars/jfasta-2.2.0-javadoc.jar!/"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry kind="lib" path="jars/poi-3.13-20150929.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
