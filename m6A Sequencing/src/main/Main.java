@@ -66,8 +66,9 @@ public class Main {
 		headerRow.createCell(0).setCellValue("Gene Symbol");
 		headerRow.createCell(1).setCellValue("Motif");
 		headerRow.createCell(2).setCellValue("Position");
-		headerRow.createCell(3).setCellValue("Header");
-		headerRow.createCell(4).setCellValue("Id");
+		headerRow.createCell(3).setCellValue("Displacement");
+		headerRow.createCell(4).setCellValue("Header");
+		headerRow.createCell(5).setCellValue("Id");
 		int rownum = 1;
 		while (rowIterator.hasNext()) {
 			Iterator<Cell> cellIterator = rowIterator.next().cellIterator();
@@ -82,7 +83,7 @@ public class Main {
 			double numPeaks = cellIterator.next().getNumericCellValue();
 			String[] peakPos = getCellData(cellIterator.next()).split(" ");
 			if (numPeaks != peakPos.length) {
-				System.out.println(geneSymbol);
+				System.out.println("WARNING! " + geneSymbol);
 				break;
 			}
 			System.out.println(geneSymbol);
@@ -94,25 +95,29 @@ public class Main {
 						boolean proceed = true;
 						if (description.contains("isoform")) {
 							if (header.contains("transcript variant")) {
-								String variant = header.substring(header.indexOf("transcript variant"));
-								String isoform = description.substring(description.indexOf("isoform")).replace("isoform", "transcript variant");
-								proceed = variant.contains(isoform);
+								int isoform = getIsoform(description);
+								int variant = getVariant(header);
+								System.out.println(geneSymbol + " : " + isoform + "/" + variant);
+								proceed = isoform == variant;
 							}
 						}
 						if (proceed) {
 							for (String peak : peakPos) {
 								try {
-									int pos = Integer.valueOf(peak);
-									if (sequence.charAt(pos - 1) == 'A') {
-										String motif = sequence.substring(pos - 3, pos + 2);
-										if (Pattern.matches("[AG][AG]AC[ACT]", motif)) {
+									int pos = Integer.valueOf(peak) - 1;
+									Pattern regex = Pattern.compile("[AG][AG]AC[ACT]");
+									Matcher matcher = regex.matcher(sequence);
+									while (matcher.find()) {
+										if (Math.abs(matcher.start() - (pos - 2)) <= 3) {
 											Row row = analysis.createRow(rownum);
 											row.createCell(0).setCellValue(geneSymbol);
-											row.createCell(1).setCellValue(motif);
+											row.createCell(1).setCellValue(matcher.group());
 											row.createCell(2).setCellValue(peak);
-											row.createCell(3).setCellValue(header);
-											row.createCell(4).setCellValue(header.split("|")[1]);
+											row.createCell(3).setCellValue(matcher.start() + 1);
+											row.createCell(4).setCellValue(header);
+											row.createCell(5).setCellValue(header.split("\\|")[1]);
 											rownum++;
+											break;
 										}
 									}
 								} catch (Exception e) {
@@ -144,5 +149,37 @@ public class Main {
 		default:
 			return "";
 		}
+	}
+
+	private static int getVariant(String variant) {
+		Pattern regex = Pattern.compile("(transcript variant )[0-9]+");
+		Matcher matcher = regex.matcher(variant);
+		while (matcher.find()) {
+			Pattern digit = Pattern.compile("[0-9]+");
+			Matcher m  = digit.matcher(matcher.group());
+			while (m.find()) {
+				return Integer.parseInt(m.group());
+			}
+		}
+		return 0;
+	}
+
+	private static int getIsoform(String isoform) {
+		String transcribe = "abcdefghijk";
+		for (char c : transcribe.toCharArray()) {
+			if (isoform.contains("isoform " + c)) {
+				isoform.replace("isoform " + c, "isoform " + (transcribe.indexOf(c) + 1));
+			}
+		}
+		Pattern regex = Pattern.compile("(isoform )[0-9]+");
+		Matcher matcher = regex.matcher(isoform);
+		while (matcher.find()) {
+			Pattern digit = Pattern.compile("[0-9]+");
+			Matcher m  = digit.matcher(matcher.group());
+			while (m.find()) {
+				return Integer.parseInt(m.group());
+			}
+		}
+		return 0;
 	}
 }

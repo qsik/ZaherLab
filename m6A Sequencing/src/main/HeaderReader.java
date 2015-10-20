@@ -20,8 +20,10 @@ public class HeaderReader {
 			String id = line.split("\\|")[1];
 			URL ncbi = new URL(urlBase + id + urlCap);
 			File transcript = new File(transcriptFolder.getPath() + "/" + id + ".xml");
-			Files.copy(ncbi.openStream(), transcript.toPath(), StandardCopyOption.REPLACE_EXISTING);
-			Thread.sleep(350);
+			if (!transcript.exists()) {
+				Files.copy(ncbi.openStream(), transcript.toPath(), StandardCopyOption.REPLACE_EXISTING);
+				Thread.sleep(350);
+			}
 		}
 		reader.close();
 	}
