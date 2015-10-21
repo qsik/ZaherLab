@@ -18,5 +18,8 @@
 		</attributes>
 	</classpathentry>
 	<classpathentry kind="lib" path="jars/poi-3.13-20150929.jar"/>
+	<classpathentry kind="lib" path="jars/poi-ooxml-3.13-20150929.jar"/>
+	<classpathentry kind="lib" path="jars/poi-ooxml-schemas-3.13-20150929.jar"/>
+	<classpathentry kind="lib" path="jars/xmlbeans-2.6.0.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

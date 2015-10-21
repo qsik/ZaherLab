@@ -90,15 +90,12 @@ public class Main {
 			for (FASTAElement element : sequences) {
 				String sequence = element.getSequence();
 				String header = element.getHeader();
-				if (header.contains(geneSymbol)) {
+				if (header.contains("(" + geneSymbol + ")")) {
 					if (header.contains(description.substring(0, description.length() / 2))) {
 						boolean proceed = true;
 						if (description.contains("isoform")) {
-							if (header.contains("transcript variant")) {
-								int isoform = getIsoform(description);
-								int variant = getVariant(header);
-								System.out.println(geneSymbol + " : " + isoform + "/" + variant);
-								proceed = isoform == variant;
+							if (header.contains("transcript variant") || header.contains("isoform")) {
+								proceed = matchVariant(header, description);
 							}
 						}
 						if (proceed) {
@@ -150,36 +147,36 @@ public class Main {
 			return "";
 		}
 	}
-
-	private static int getVariant(String variant) {
-		Pattern regex = Pattern.compile("(transcript variant )[0-9]+");
-		Matcher matcher = regex.matcher(variant);
-		while (matcher.find()) {
-			Pattern digit = Pattern.compile("[0-9]+");
-			Matcher m  = digit.matcher(matcher.group());
-			while (m.find()) {
-				return Integer.parseInt(m.group());
+	
+	private static boolean matchVariant(String header, String description) {
+		Pattern headerPattern = Pattern.compile("transcript variant [0-9a-zA-Z]+");
+		Matcher headerMatcher = headerPattern.matcher(header);
+		String variant = "-1";
+		if (headerMatcher.find()) {
+			variant = headerMatcher.group();
+		}
+		
+		Pattern descPattern = Pattern.compile("isoform [0-9a-zA-Z]+");
+		Matcher descMatcher = descPattern.matcher(description);
+		String isoform = "-2";
+		if (descMatcher.find()) {
+			isoform = descMatcher.group();
+		}
+		
+		if (!variant.equalsIgnoreCase(isoform)) {
+			isoform = isoform.replace("isoform", "transcript variant");
+			if (!variant.equalsIgnoreCase(isoform)) {
+				String alphabet = "abcdefghijklmnopqrstuvwxyz";
+				for (char c : alphabet.toCharArray()) {
+					if (isoform.contains("isoform " + c)) {
+						isoform.replace("" + c, "" + (alphabet.indexOf(c) + 1));
+						System.out.println("isoform: " + isoform + " : " + "variant: " + variant);
+						return variant.equalsIgnoreCase(isoform);
+					}
+				}
 			}
 		}
-		return 0;
-	}
-
-	private static int getIsoform(String isoform) {
-		String transcribe = "abcdefghijk";
-		for (char c : transcribe.toCharArray()) {
-			if (isoform.contains("isoform " + c)) {
-				isoform.replace("isoform " + c, "isoform " + (transcribe.indexOf(c) + 1));
-			}
-		}
-		Pattern regex = Pattern.compile("(isoform )[0-9]+");
-		Matcher matcher = regex.matcher(isoform);
-		while (matcher.find()) {
-			Pattern digit = Pattern.compile("[0-9]+");
-			Matcher m  = digit.matcher(matcher.group());
-			while (m.find()) {
-				return Integer.parseInt(m.group());
-			}
-		}
-		return 0;
+		System.out.println("isoform: " + isoform + " : " + "variant: " + variant);
+		return isoform.equalsIgnoreCase(variant);		
 	}
 }
