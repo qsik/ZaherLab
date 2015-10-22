@@ -17,8 +17,6 @@ import net.sf.jfasta.FASTAFileReader;
 import net.sf.jfasta.impl.FASTAElementIterator;
 import net.sf.jfasta.impl.FASTAFileReaderImpl;
 
-import org.apache.poi.hssf.usermodel.HSSFSheet;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
@@ -27,9 +25,12 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 public class CopyOfMain {
 	//	private static final String urlBase = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=protein&id=";
 	//	private static final String urlCap = "&rettype=fasta";
-	private static final File mrna = new File("Z:/Kyusik/m6A sequencing/v36.1mrna.fa");
-	private static final File excel = new File("Z:/Kyusik/m6A sequencing/m6a.xlsx");
-	private static final File errors = new File("Z:/Kyusik/m6A sequencing/errors.txt");
+	//	private static final File mrna = new File("Z:/Kyusik/m6A sequencing/v36.1mrna.fa");
+	private static final File mrna = new File("C:/Users/Kyusik Kim/Downloads/m6A analysis/v36.1mrna.fa");
+	//	private static final File excel = new File("Z:/Kyusik/m6A sequencing/m6a.xlsx");
+	private static final File excel = new File("C:/Users/Kyusik Kim/Downloads/m6A analysis/m6a.xlsx");
+	//	private static final File errors = new File("Z:/Kyusik/m6A sequencing/errors.txt");
+	private static final File errors = new File("C:/Users/Kyusik Kim/Downloads/m6A analysis/errors.txt");
 	//	private static final File position = new File("Z:/Kyusik/m6a sequencing/positions.txt");
 	//	private static final File genesFolder = new File("Z:/Kyusik/m6A sequencing/Genes");
 	//	private static final File transcriptFolder = new File("Z:/Kyusik/m6A sequencing/Transcripts");
@@ -56,13 +57,13 @@ public class CopyOfMain {
 		XSSFWorkbook workbook = new XSSFWorkbook(new FileInputStream(excel));
 		XSSFSheet data = workbook.getSheet("Data");
 		XSSFSheet analysis = workbook.getSheet("Analysis") == null? workbook.createSheet("Analysis") : workbook.getSheet("Analysis");
-		
+
 		Set<FASTAElement> sequences = new HashSet<FASTAElement>();
 		while (elementIterator.hasNext()) {
 			sequences.add(elementIterator.next());
 		}
 		System.out.println("Done parsing FASTA");
-		
+
 		Set<Transcript> transcripts = new HashSet<Transcript>();
 		Iterator<Row> rowIterator = analysis.rowIterator();
 		rowIterator.next();
@@ -122,15 +123,15 @@ public class CopyOfMain {
 												row.createCell(1).setCellValue(matcher.group());
 												row.createCell(2).setCellValue(peak);
 												row.createCell(3).setCellValue(matcher.start() + 1);
-												row.createCell(4).setCellValue(header);
-												row.createCell(5).setCellValue(header.split("\\|")[1]);
+												row.createCell(5).setCellValue(header);
+												row.createCell(6).setCellValue(header.split("\\|")[1]);
 											}
 										}
 									}
 								} catch (Exception e) {
 									writer.append(geneSymbol + " : " + peak + " : " + sequence.length());
 									writer.append(System.lineSeparator());
-								}							
+								}
 							}
 						}
 					}
@@ -157,7 +158,7 @@ public class CopyOfMain {
 			return "";
 		}
 	}
-	
+
 	private static boolean matchVariant(String header, String description) {
 		Pattern headerPattern = Pattern.compile("transcript variant [0-9a-zA-Z]+");
 		Matcher headerMatcher = headerPattern.matcher(header);
@@ -165,14 +166,14 @@ public class CopyOfMain {
 		if (headerMatcher.find()) {
 			variant = headerMatcher.group();
 		}
-		
+
 		Pattern descPattern = Pattern.compile("isoform [0-9a-zA-Z]+");
 		Matcher descMatcher = descPattern.matcher(description);
 		String isoform = "-2";
 		if (descMatcher.find()) {
 			isoform = descMatcher.group();
 		}
-		
+
 		if (!variant.equalsIgnoreCase(isoform)) {
 			isoform = isoform.replace("isoform", "transcript variant");
 			if (!variant.equalsIgnoreCase(isoform)) {
@@ -187,6 +188,6 @@ public class CopyOfMain {
 			}
 		}
 		System.out.println("isoform: " + isoform + " : " + "variant: " + variant);
-		return isoform.equalsIgnoreCase(variant);		
+		return isoform.equalsIgnoreCase(variant);
 	}
 }
