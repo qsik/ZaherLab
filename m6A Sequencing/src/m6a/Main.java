@@ -32,11 +32,11 @@ public class Main {
 		File rmbase = new File("C:/Users/Kyusik Kim/Google Drive/Zaher Lab/RMBase/Modified RMBase.xlsx");
 
 		XSSFWorkbook workbook = new XSSFWorkbook(new FileInputStream(rmbase));
+		Util.backup(workbook, rmbase);
+
 		XSSFSheet rawData = workbook.getSheet("Raw Data");
 		XSSFSheet analysis = workbook.createSheet("Analysis");
 		analysis.createRow(0);
-
-		Util.backup(workbook, rmbase);
 
 		Iterator<Row> iterator = rawData.iterator();
 		iterator.next();
