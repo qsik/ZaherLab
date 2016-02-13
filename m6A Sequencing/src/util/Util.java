@@ -27,7 +27,12 @@ public class Util {
 		case Cell.CELL_TYPE_NUMERIC:
 			return cell.getNumericCellValue();
 		case Cell.CELL_TYPE_STRING:
-			return Double.parseDouble(cell.getStringCellValue());
+			try {
+				return Double.parseDouble(cell.getStringCellValue());
+			}
+			catch (Exception e) {
+				return -1;
+			}
 		default:
 			return -1;
 		}
