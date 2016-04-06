@@ -5,9 +5,15 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.HashSet;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Iterator;
-import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.poi.openxml4j.exceptions.InvalidFormatException;
 import org.apache.poi.ss.usermodel.Row;
@@ -17,77 +23,64 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import util.Util;
 
 public class Search {
-	public static void main(String[] args) throws InvalidFormatException, IOException {
+	public static void main(String[] args) throws InvalidFormatException, IOException, SQLException, ClassNotFoundException {
 		String zaherPath = "C:/Users/Zaher Lab/Desktop/Kyusik/CIMS/";
 		File excelFile = new File(zaherPath + "Data.xlsx");
+		Class.forName("net.ucanaccess.jdbc.UcanaccessDriver");
+		Connection conn = DriverManager.getConnection("jdbc:ucanaccess://C:/Users/Zaher Lab/Desktop/Kyusik/CIMS/Hg19.accdb");
 
 		XSSFWorkbook data = new XSSFWorkbook(new FileInputStream(excelFile));
 		XSSFSheet sites = data.getSheet("Sites");
-		XSSFSheet genes = data.getSheet("Genes");
 		XSSFSheet matches = data.getSheet("Matches");
-		if (matches != null) {
-			int index = data.getSheetIndex("Matches");
-			data.removeSheetAt(index);
+		if (matches == null) {
+			matches = data.createSheet("Matches");
 		}
-		matches = data.createSheet("Matches");
-		matches.createRow(0);
-
-		Iterator<Row> siteIterator = sites.iterator();
-		siteIterator.next();
-		Set<Site> siteSet = new HashSet<Site>();
-
-		Iterator<Row> geneIterator = genes.iterator();
-		geneIterator.next();
-		Set<Gene> geneSet = new HashSet<Gene>();
-
-		while (siteIterator.hasNext()) {
-			Row row = siteIterator.next();
+		
+		Iterator<Row> iterator = sites.iterator();
+		iterator.next();
+		
+		while (iterator.hasNext()) {
+			Row row = iterator.next();
 			String motif = Util.getStringValue(row.getCell(0));
 			String chrom = Util.getStringValue(row.getCell(1));
 			double start = Util.getNumberValue(row.getCell(2));
 			double end = Util.getNumberValue(row.getCell(3));
 			String strand = Util.getStringValue(row.getCell(4));
-			double distance = Util.getNumberValue(row.getCell(5));
-			Site site = new Site(motif, chrom, start, end, strand, distance);
-			siteSet.add(site);
-		}
-
-		while (geneIterator.hasNext()) {
-			Row row = geneIterator.next();
-			String ref = Util.getStringValue(row.getCell(0));
-			String chrom = Util.getStringValue(row.getCell(1));
-			String strand = Util.getStringValue(row.getCell(2));
-			double start = Util.getNumberValue(row.getCell(3));
-			double end = Util.getNumberValue(row.getCell(4));
-			Gene gene = new Gene(ref, chrom, strand, start, end);
-			geneSet.add(gene);
-		}
-
-		for (Site site : siteSet) {
-			for (Gene gene : geneSet) {
-				if (site.chrom.equals(gene.chrom)) {
-					if (site.strand.equals(gene.strand)) {
-						if (site.start >= gene.start && site.end <= gene.end) {
-							double d = Math.abs(gene.start - site.start);
-							d = Math.abs(site.distance) - d;
-							if (d >= -1 && d <= 1) {
-								Row row  = matches.createRow(matches.getLastRowNum() + 1);
-								row.createCell(0).setCellValue(gene.ref);
-								row.createCell(1).setCellValue(site.chrom);
-								row.createCell(2).setCellValue(site.start);
-								row.createCell(3).setCellValue(site.end);
-								row.createCell(4).setCellValue(site.strand);
-								row.createCell(5).setCellValue(site.motif);
-							}
+			double distance = Util.getNumberValue(row.getCell(7));
+			PreparedStatement query = conn.prepareStatement("SELECT * FROM Genes WHERE chrom = ? AND strand = ? AND txStart <= ? AND txEnd >= ?");
+			query.setString(1, chrom);
+			query.setString(2, strand);
+			query.setDouble(3, start);
+			query.setDouble(4, end);
+			ResultSet result = query.executeQuery();
+			while (result.next()) {
+				String ref = result.getString(1);
+				PreparedStatement queryRef = conn.prepareStatement("SELECT * FROM Sequences WHERE Ref = ?");
+				queryRef.setString(1, ref);
+				ResultSet sequences = queryRef.executeQuery();
+				while (sequences.next()) {
+					String sequence = sequences.getString(2);
+					try {
+						System.out.println((start - result.getInt(4)));
+						Pattern regex = Pattern.compile(motif);
+						Matcher matcher = regex.matcher(sequence);
+						while (matcher.find()) {
+							System.out.println(matcher.group());
+							System.out.println(matcher.start());
 						}
+					} catch (Exception e) {
+//						System.out.println(ref + " : " + sequences.getString(1));
 					}
 				}
 			}
+			result.close();
 		}
 		
 		OutputStream outputStream = new FileOutputStream(excelFile);
 		data.write(outputStream);
 		data.close();
+		
+		conn.close();
 	}
 }
 

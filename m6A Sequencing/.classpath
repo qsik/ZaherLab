@@ -22,5 +22,10 @@
 	<classpathentry kind="lib" path="jars/poi-ooxml-schemas-3.13-20150929.jar"/>
 	<classpathentry kind="lib" path="jars/xmlbeans-2.6.0.jar"/>
 	<classpathentry kind="lib" path="jars/guava-18.0.jar"/>
+	<classpathentry kind="lib" path="jars/jackcess-2.1.3.jar"/>
+	<classpathentry kind="lib" path="jars/ucanaccess-3.0.3.1.jar"/>
+	<classpathentry kind="lib" path="jars/hsqldb.jar"/>
+	<classpathentry kind="lib" path="jars/commons-lang-2.6.jar"/>
+	<classpathentry kind="lib" path="jars/commons-logging-1.1.1.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>
