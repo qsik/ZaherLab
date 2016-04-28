@@ -8,6 +8,7 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.regex.Matcher;
@@ -20,9 +21,28 @@ public class Main {
 
 	public static void main(String[] args) throws InvalidFormatException, IOException {
 		File sites = new File("C:/Users/Zaher Lab/Desktop/Kyusik/CIMS/sites.txt");
+		File transcripts = new File("C:/Users/Zaher Lab/Desktop/Kyusik/CIMS/transcripts.txt");
 		File output = new File("C:/Users/Zaher Lab/Desktop/Kyusik/CIMS/output.txt");
-		File ucsc = new File("C:/Users/Zaher Lab/Desktop/Kyusik/CIMS/UCSC Sequences.tabular");
+
+		Set<Transcript> transcriptSet = new HashSet<Transcript>();
 		Set<Site> siteSet = new HashSet<Site>();
+
+		try {
+			BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(transcripts)));
+			String data;
+			reader.readLine();
+			while ((data = reader.readLine()) != null) {
+				String[] tData = data.split("\t");
+				Transcript transcript = new Transcript(tData[0], tData[1], tData[2], Integer.parseInt(tData[3]),
+						Integer.parseInt(tData[4]), 
+						Arrays.stream(tData[5].substring(1, tData[5].length() - 2).split(",")).mapToInt(Integer::parseInt).toArray(), 
+						Arrays.stream(tData[6].substring(1, tData[6].length() - 2).split(",")).mapToInt(Integer::parseInt).toArray());
+				transcriptSet.add(transcript);
+			}
+			reader.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 
 		try {
 			BufferedReader reader = new BufferedReader(new InputStreamReader(new FileInputStream(sites)));
@@ -41,42 +61,32 @@ public class Main {
 		}
 
 		try {
-			BufferedReader reader = new BufferedReader(new FileReader(ucsc));
 			BufferedWriter writer = new BufferedWriter(new FileWriter(output));
-			String data;
-			while ((data = reader.readLine()) != null) {
-				String[] ref = data.split("\t");
-				for (Site site : siteSet) {
-					if (site.chrom.equals(ref[1])) {
-						double cStart = Double.parseDouble(ref[2]);
-						if (site.start >= cStart) {
-							double cEnd = Double.parseDouble(ref[3]);
-							if (site.end <= cEnd) {
-								try {
-									int start = Math.max(0, (int) (site.start - cStart - 4));
-									int end = Math.min(ref[4].length(), start + 8);
-									Pattern pattern = Pattern.compile(site.motif);
-									Matcher matcher = pattern.matcher(ref[4]).region(start, end);
-									if (matcher.find()) {
+			for (Site site : siteSet) {
+				for (Transcript transcript : transcriptSet) {
+					if (site.chrom.equalsIgnoreCase(transcript.chrom)) {
+						if (site.start >= transcript.start) {
+							if (site.end <= transcript.end) {
+								for (int i = 0; i < transcript.exonStarts.length; i++) {
+									if (site.start >= transcript.exonStarts[i] && site.end <= transcript.exonEnds[i]) {
 										String out = site.motif + TAB + site.chrom + TAB + site.start +
 												TAB + site.end + TAB + site.strand + TAB + site.annot1 + 
 												TAB + site.annot2 +	TAB + site.distance + TAB + 
-												matcher.start() + TAB + ref[0] + TAB + ref[1] + TAB + ref[2] +
-												TAB + ref[3] + TAB + ref[4];
+												transcript.ref + TAB + transcript.chrom + TAB + 
+												transcript.strand + TAB + transcript.start + TAB + transcript.end + 
+												TAB + transcript.exonStarts[i] + TAB + transcript.exonEnds[i];
 										System.out.println(out);
 										writer.write(out);
 										writer.newLine();
 									}
-								} catch (Exception e) {
-									e.printStackTrace();
 								}
 							}
 						}
 					}
 				}
 			}
+
 			writer.close();
-			reader.close();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -103,4 +113,25 @@ class Site {
 		this.annot2 = annot2;
 		this.distance = distance;
 	}
+}
+
+class Transcript {
+	public final String ref;
+	public final String chrom;
+	public final String strand;
+	public final int start;
+	public final int end;
+	public final int[] exonStarts;
+	public final int[] exonEnds;
+
+	public Transcript(String ref, String chrom, String strand, int start, int end,
+			int[] exonStarts, int[] exonEnds) {
+		this.ref = ref;
+		this.chrom = chrom;
+		this.strand = strand;
+		this.start = start;
+		this.end = end;
+		this.exonStarts = exonStarts;
+		this.exonEnds = exonEnds;
+	}	
 }
