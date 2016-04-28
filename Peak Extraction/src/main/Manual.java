@@ -6,98 +6,110 @@ import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.math3.analysis.interpolation.AkimaSplineInterpolator;
+import org.apache.commons.math3.analysis.polynomials.PolynomialSplineFunction;
+import org.apache.commons.math3.complex.Complex;
+import org.apache.commons.math3.stat.descriptive.moment.Mean;
+import org.apache.commons.math3.stat.descriptive.moment.StandardDeviation;
+import org.apache.commons.math3.transform.DftNormalization;
+import org.apache.commons.math3.transform.FastFourierTransformer;
+import org.apache.commons.math3.transform.TransformType;
+
 public class Manual {
-	public final static int SMOOTHING = 10;
-	public final static int WINDOW = 45;
-	
+	public final static boolean SMOOTH = true;
+	public final static int SMOOTHING = 3;
+	public final static int WINDOW = 5;
+
 	public static void main(String[] args) {
 		try {
 			BufferedReader reader = new BufferedReader(new InputStreamReader(InputStream.class.getResourceAsStream("/Data")));
-			List<Integer> count = new ArrayList<Integer>();
-			List<Integer> smoothed = new ArrayList<Integer>();
-			List<Integer> distance = new ArrayList<Integer>();
+			List<Integer> rawData = new ArrayList<Integer>();
+			List<Integer> inputData = new ArrayList<Integer>();
 			String dataPoint;
 			while ((dataPoint = reader.readLine()) != null) {
 				int y = Integer.parseInt(dataPoint.split("\t")[1]);
-				count.add(y);
+				rawData.add(y);
 			}
-			for (int i = 0; i < count.size(); i++) {
-				int d = 0;
-				int c = 0;
-				for (int x = i - SMOOTHING; x <= i + SMOOTHING; x++) {
-					if (x >= 0 && x < count.size()) {
-						d += count.get(x);
-						c++;
+			if (SMOOTH) {
+				for (int i = 0; i < rawData.size(); i++) {
+					int d = 0;
+					int c = 0;
+					for (int x = i - SMOOTHING; x <= i + SMOOTHING; x++) {
+						if (x >= 0 && x < rawData.size()) {
+							d += rawData.get(x);
+							c++;
+						}
+					}
+					d = d / c;
+					inputData.add(d);
+				}
+			}
+			else {
+				inputData.addAll(rawData);
+			}
+			double[] data = new double[inputData.size()];
+			double[] fft = new double[1024];
+			double[] sY = data.clone();
+			double[] sX = data.clone();
+			for (int i = 0; i < data.length; i++) {
+				data[i] = inputData.get(i);
+				sX[i] = i;
+			}
+			double popDev = new StandardDeviation(false).evaluate(data);
+			double mean = new Mean().evaluate(data);
+			for (int a = 0; a < data.length; a++) {
+				List<Double> temp = new ArrayList<Double>();
+				for (int b = a - WINDOW; b < a + WINDOW; b++) {
+					if (b >= 0 && b < data.length) {
+						temp.add(data[b]);
 					}
 				}
-				d = d / c;
-				smoothed.add(d);
+				double[] local = new double[temp.size()];
+				for (int c = 0; c < temp.size(); c++) {
+					local[c] = temp.get(c);
+				}
+				fft[a] = data[a];
+				double sampleDev = new StandardDeviation().evaluate(local);
+				double localDiff = Math.abs(data[a] - new StandardDeviation().evaluate(local)) / sampleDev;
+				double globalDiff = Math.abs(data[a] - mean) / popDev;
+				if (localDiff * 0.25 + globalDiff * 0.25 >= 1) {
+					sY[a] = data[a];
+				}
+				else {
+					sY[a] = 0;
+				}
 			}
-			for (int i = 0; i < smoothed.size(); i++) {
-				int min = Integer.MAX_VALUE;
-				int b = 0;
-				for (int j = i; j <= i + WINDOW && j < smoothed.size(); j++) {
-					if (smoothed.get(j) < min) {
-						min = smoothed.get(j);
-						b = j;
+			for (int i = data.length; i < 1024; i++) {
+				fft[i] = 0;
+			}
+			Complex[] output = new FastFourierTransformer(DftNormalization.STANDARD).transform(fft, TransformType.FORWARD);
+			PolynomialSplineFunction spline = new AkimaSplineInterpolator().interpolate(sX, sY);
+			for (Complex c : output) {
+				System.out.println(c.);
+			}
+			List<Double> maxima = new ArrayList<Double>();
+			double prev = Double.MAX_VALUE;
+			for (double x = 0; x < sX.length; x++) {
+//				System.out.println(x + "\t" + spline.value(x));
+				double der = spline.polynomialSplineDerivative().value(x);
+				if (prev == Double.MAX_VALUE) {
+					prev = der;
+				}
+				else {
+					if (spline.value(x) != 0) {
+						if (Math.signum(der) == 0 || (Math.signum(der) < 0 && Math.signum(prev) > 0)) {
+							maxima.add(x);
+						}
+						prev = der;
 					}
 				}
-				int maxOne = 0;
-				int a = 0;
-				for (int j = i; j <= b; j++) {
-					if (smoothed.get(j) > maxOne) {
-						maxOne = smoothed.get(j);
-						a = j;
-					}
-				}
-				int maxTwo = 0;
-				int c = 0;
-				for (int j = b; j <= i + WINDOW && j < smoothed.size(); j++) {
-					if (smoothed.get(j) > maxTwo) {
-						maxTwo = smoothed.get(j);
-						c = j;
-					}
-				}
-				distance.add(Math.abs(c - a));
 			}
-			double average = 0;
-			for (int d : distance) {
-				average += d;
+			for (int i = 1; i < maxima.size(); i++) {
+//				System.out.println(maxima.get(i) - maxima.get(i - 1));
 			}
-			average = average / distance.size();
-			System.out.println(average);
+			reader.close();		
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 	}
-}
-
-class Extrema {
-	public final int maxOne;
-	public final int maxTwo;
-	public final int distance;
-	
-	public Extrema(int maxOne, int maxTwo) {
-		this.maxOne = maxOne;
-		this.maxTwo = maxTwo;
-		distance = maxTwo - maxOne;
-	}
-
-	@Override
-	public boolean equals(Object obj) {
-		if (this == obj)
-			return true;
-		if (obj == null)
-			return false;
-		if (getClass() != obj.getClass())
-			return false;
-		Extrema other = (Extrema) obj;
-		if (distance != other.distance)
-			return false;
-		if (maxOne != other.maxOne)
-			return false;
-		if (maxTwo != other.maxTwo)
-			return false;
-		return true;
-	}	
 }
