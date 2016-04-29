@@ -14,6 +14,9 @@ public class Convert {
 			BufferedReader reader = new BufferedReader(new InputStreamReader(InputStream.class.getResourceAsStream("/Collated")));
 			reader.readLine();
 			String line;
+			for (int i = 0; i < 2048; i++) {
+				data.put(i, 0);
+			}
 			while ((line = reader.readLine()) != null) {
 				String[] split = line.split("\t");
 				for (int i = 0; i < split.length; i = i + 2) {
@@ -26,7 +29,7 @@ public class Convert {
 						}
 						data.put(start, c + count);
 					} catch (Exception ex) {
-						
+
 					}
 				}
 
