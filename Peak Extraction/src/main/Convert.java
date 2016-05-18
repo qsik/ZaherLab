@@ -11,10 +11,10 @@ public class Convert {
 	public static void main(String[] args) {
 		Map<Integer, Integer> data = new HashMap<Integer, Integer>();
 		try {
-			BufferedReader reader = new BufferedReader(new InputStreamReader(InputStream.class.getResourceAsStream("/Collated")));
+			BufferedReader reader = new BufferedReader(new InputStreamReader(InputStream.class.getResourceAsStream("/Data")));
 			reader.readLine();
 			String line;
-			for (int i = 0; i < 2048; i++) {
+			for (int i = 0; i < 940; i++) {
 				data.put(i, 0);
 			}
 			while ((line = reader.readLine()) != null) {

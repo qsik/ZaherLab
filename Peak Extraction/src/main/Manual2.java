@@ -19,7 +19,7 @@ public class Manual2 {
 	public final static boolean SMOOTH = false;
 	public final static int SMOOTHING = 3;
 	public final static int WINDOW = 5;
-	public final static int BIN_SIZE = 512;
+	public final static int BIN_SIZE = 1024;
 
 	public static void main(String[] args) {
 		try {
